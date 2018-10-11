@@ -2,6 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -16,8 +20,35 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	Args: cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("concat called")
+		fmt.Println("args: " + strings.Join(args, " "))
+
+		// create list.txt file
+		f, err := os.Create("/tmp/list.txt")
+		if err != nil {
+			panic(err)
+		}
+
+		defer f.Close()
+		for _, filename := range args {
+			f.WriteString("file '" + filename + "'\n")
+		}
+		f.Sync()
+
+		// exec ffmpeg
+		ffmpeg, err := exec.LookPath("ffmpeg")
+		if err != nil {
+			panic(err)
+		}
+		ffmpegArgs := []string{"ffmpeg", "-f", "concat", "-safe", "0", "-i", "/tmp/list.txt", "-c", "copy", "out.mp4"}
+		env := os.Environ()
+
+		execErr := syscall.Exec(ffmpeg, ffmpegArgs, env)
+		if execErr != nil {
+			panic(execErr)
+		}
 	},
 }
 
